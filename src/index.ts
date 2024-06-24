@@ -232,18 +232,20 @@ export function temporarySignedURL(url: string | URL, password: Password, expire
 /**
  * Verify a signed URL by the `signature` parameter.
  */
-export async function verifySignedURL(url: string | URL, password: Password) {
+export async function verifySignedURL(url: string | URL, password: Password | Password[]) {
   const uri = new URL(url)
   const signature = uri.searchParams.get('signature') || ''
   uri.searchParams.delete('signature')
 
   uri.searchParams.sort()
 
-  const expected = await hmac('SHA-1', uri.toString(), password, 'base64url')
+  for (const key of Array.isArray(password) ? password : [password]) {
+    const expected = await hmac('SHA-1', uri.toString(), key, 'base64url')
 
-  if (fixedTimeComparison(signature, expected)) {
-    const expires = uri.searchParams.get('expires')
-    return !(expires && Math.floor(Date.now() / 1000) > +expires)
+    if (fixedTimeComparison(signature, expected)) {
+      const expires = uri.searchParams.get('expires')
+      return !(expires && Math.floor(Date.now() / 1000) > +expires)
+    }
   }
 
   return false
