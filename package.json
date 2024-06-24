@@ -37,6 +37,7 @@
   "devDependencies": {
     "@antfu/eslint-config": "^2.21.1",
     "@types/node": "^20.14.8",
+    "changelogen": "^0.5.5",
     "eslint": "9.4.0",
     "tsup": "^8.1.0",
     "typescript": "^5.5.2",
