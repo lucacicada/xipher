@@ -55,3 +55,25 @@ export function klen(alg: HashAlgorithmIdentifier): number {
   const name = (typeof alg === 'string' ? alg : alg.name).toUpperCase()
   return keyLengths[name] ?? 32
 }
+
+/**
+ * Implements a constant-time comparison algorithm.
+ *
+ * @param a Original string (running time is always proportional to its length)
+ * @param b String to compare to original string
+ * @returns Returns true if `a` is equal to `b`, without leaking timing information
+ *          that would allow an attacker to guess one of the values.
+ */
+export function fixedTimeComparison(a: string, b: string): boolean {
+  let mismatch = a.length === b.length ? 0 : 1
+
+  if (mismatch) {
+    b = a
+  }
+
+  for (let i = 0; i < a.length; i += 1) {
+    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  }
+
+  return mismatch === 0
+}

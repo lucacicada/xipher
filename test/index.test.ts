@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pbkdf2, sha256 } from '../src'
+import { pbkdf2, sha256, signedURL, verifySignedURL } from '../src'
 
 describe('pbkdf2', () => {
   it('should return an ArrayBuffer instance', async () => {
@@ -42,5 +42,17 @@ describe('sha-256', () => {
   it('should encode a string when the encoder is either null or undefined', async () => {
     await expect(sha256('', null as unknown as any)).resolves.toBeTypeOf('string')
     await expect(sha256('', undefined)).resolves.toBeTypeOf('string')
+  })
+})
+
+describe('url signing', () => {
+  it('should sign a URL', async () => {
+    const url = new URL(await signedURL('https://example.com', 'password'))
+    expect(url.searchParams.has('expires')).toBe(false)
+    expect(url.searchParams.get('signature')).toBeTypeOf('string')
+
+    await expect(verifySignedURL(url.href, 'password')).resolves.toBe(true)
+    await expect(verifySignedURL(url.href, 'invalid-password')).resolves.toBe(false)
+    await expect(verifySignedURL('https://example.com?n', 'password')).resolves.toBe(false)
   })
 })

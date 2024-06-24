@@ -1,6 +1,6 @@
 import crypto from 'uncrypto'
 import type { Encoding } from './utils'
-import { encodeArrayBuffer, klen, stringToBuffer } from './utils'
+import { encodeArrayBuffer, fixedTimeComparison, klen, stringToBuffer } from './utils'
 
 export type Password = BufferSource | Uint8Array | string
 
@@ -159,8 +159,92 @@ export function sha256Hmac<const T extends Encoding = 'hex'>(data: string, passw
     'SHA-256',
     data,
     password,
-    // NOTE: ensure we are correctly using the default encoder.
-    // We treat `null` and `undefined` as begin unset.
-    encoder == null ? 'hex' : encoder,
+    // NOTE: hmac uses `hex` as the default encoder.
+    encoder,
   )
+}
+
+/**
+ * When `number` is provided, is treated as seconds from now.
+ * When `Date` is provided, is treated as an absolute date.
+ */
+type Expiration = Date | number
+
+function computeExpirationInUnixSeconds(expires: Expiration) {
+  if (expires instanceof Date) {
+    return Math.floor(expires.getTime() / 1000)
+  }
+
+  if (typeof expires === 'number') {
+    return Math.floor(Date.now() / 1000) + expires
+  }
+
+  throw new TypeError('Invalid expiration type')
+}
+
+/**
+ * Sign a URL. This method adds a `signature` parameter to the URL that contains the HMAC of the URL.
+ *
+ * The URL cannot have a `signature` nor `expires` parameter.
+ *
+ * ### Example
+ *
+ * ```ts
+ * // Sign a URL.
+ * const signed = await signedURL('https://example.com', 'password')
+ *
+ * // Sign a URL that expires in 60 seconds.
+ * const signed = await signedURL('https://example.com', 'password', 60)
+ * ```
+ */
+export async function signedURL(url: string | URL, password: Password, expires?: Expiration): Promise<string> {
+  const uri = new URL(url)
+
+  if (uri.searchParams.has('signature')) {
+    throw new Error('URL already has "signature" parameter')
+  }
+
+  // NOTE: we have to check for the existence of the `expires` parameter
+  // because the verify method check for this parameter to validate the expiration, if it exists.
+  if (uri.searchParams.has('expires')) {
+    throw new Error('URL already has "expires" parameter')
+  }
+
+  if (expires) {
+    uri.searchParams.set('expires', computeExpirationInUnixSeconds(expires).toString())
+  }
+
+  uri.searchParams.sort()
+
+  const signature = await hmac('SHA-1', uri.toString(), password, 'base64url')
+  uri.searchParams.set('signature', signature)
+
+  return uri.href
+}
+
+/**
+ * Alias of {@link signedURL} except that the `expires` parameter is required.
+ */
+export function temporarySignedURL(url: string | URL, password: Password, expires: Expiration): Promise<string> {
+  return signedURL(url, password, expires)
+}
+
+/**
+ * Verify a signed URL by the `signature` parameter.
+ */
+export async function verifySignedURL(url: string | URL, password: Password) {
+  const uri = new URL(url)
+  const signature = uri.searchParams.get('signature') || ''
+  uri.searchParams.delete('signature')
+
+  uri.searchParams.sort()
+
+  const expected = await hmac('SHA-1', uri.toString(), password, 'base64url')
+
+  if (fixedTimeComparison(signature, expected)) {
+    const expires = uri.searchParams.get('expires')
+    return !(expires && Math.floor(Date.now() / 1000) > +expires)
+  }
+
+  return false
 }
