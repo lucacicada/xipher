@@ -11,6 +11,35 @@ xipher is a simple wrapper around the subtle crypto API.
   <img src=".github/assets/xiper.png" alt="Thumbnail" />
 </p>
 
+## Installation
+
+```bash
+pnpm add xipher
+```
+
+## Usage
+
+### `pbkdf2(password, keyLength)`
+
+Derive a key from a base password using pbkdf2.
+
+```ts
+import { pbkdf2 } from 'xipher'
+
+// Generate a 32 bytes key from the password 'password'
+const key = await pbkdf2('password', 32)
+```
+
+### `sha256(data)`
+
+Hash data using sha256.
+
+```ts
+import { sha256 } from 'xipher'
+
+const hash = await sha256('...')
+```
+
 ## Security Considerations
 
 You have read this section already pretty much everywhere.
